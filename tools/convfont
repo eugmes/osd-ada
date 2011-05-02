@@ -1,0 +1,73 @@
+#! /usr/bin/python
+from __future__ import print_function
+import sys
+
+def main():
+    started = False
+    lines = sys.stdin.readlines()
+    data = []
+    chardata = []
+
+    for line in lines:
+        if line[0] == '+':
+            if started:
+                data.append(chardata)
+                chardata = []
+                started = False
+        else:
+            started = True;
+            byte = 0
+            for i in range(8):
+                if line[7 - i] == ' ':
+                    byte += 1 << i
+            chardata.append(byte)
+    data.append(chardata)
+
+    print("""\
+with Interfaces;
+
+package Font is
+   pragma Preelaborate;
+
+   type Char is mod 256;
+   for Char'Size use 8;
+
+   type Plane_Index is range 0 .. 7;
+   for Plane_Index'Size use 8;
+
+   type Font_Plane is array (Char) of Interfaces.Unsigned_8;
+   pragma Pack (Font_Plane);
+
+   type Font_Type is array (Plane_Index) of Font_Plane;
+   pragma Pack (Font_Type);
+
+   Font_Data : constant Font_Type := (""")
+
+    for i in range(8):
+        first = True
+        print('      (', end='')
+        line_length = 7
+        for chardata in data:
+            if first:
+                first = False
+            else:
+                if line_length >= 100:
+                    print(',\n       ', end='')
+                    line_length = 7
+                else:
+                    print(', ', end='')
+                    line_length = line_length + 2
+
+            print('16#{0:02x}#'.format(chardata[i]), end='')
+            line_length = line_length + 6;
+        print(')', end='')
+        if i != 7:
+            print(',', end='')
+            print()
+    print(""");
+
+   pragma Linker_Section (Font_Data, ".progmem");
+end Font;""");
+
+if __name__ == '__main__':
+    main()
